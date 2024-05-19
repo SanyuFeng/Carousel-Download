@@ -1,98 +1,48 @@
-// import logo from './logo.svg';
-// import './App.css';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
-// function App() {
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>
-//           Edit <code>src/App.js</code> and save to reload.
-//         </p>
-//         <a
-//           className="App-link"
-//           href="https://reactjs.org"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           Learn React
-//         </a>
-//       </header>
-//     </div>
-//   );
-// }
+// Function to download all pages as PDF
+export const downloadAllPagesAsPDF = async (pages) => {
+  const doc = new jsPDF();
+  
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    await html2canvas(page, { scale: 2 }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      if (i > 0) doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+    });
+  }
 
-// export default App;
-
-// import React from 'react';
-// import Carousel from './Carousel';
-// import { downloadAllPagesAsPDF, downloadAllPagesAsZIP } from './Download';
-// import './index.css'; // Ensure Tailwind CSS is included
-
-// const pages = [
-//   <div className="bg-gray-200 p-5 flex justify-center items-center">
-//     <img src={`${process.env.PUBLIC_URL}/images/image1.jpg`} alt="Page 1" className="max-w-full h-auto" />
-//   </div>,
-//   <div className="bg-gray-200 p-5 flex justify-center items-center">
-//     <img src={`${process.env.PUBLIC_URL}/images/image2.jpg`} alt="Page 2" className="max-w-full h-auto" />
-//   </div>,
-//   <div className="bg-gray-200 p-5 flex justify-center items-center">
-//     <img src={`${process.env.PUBLIC_URL}/images/image3.jpg`} alt="Page 3" className="max-w-full h-auto" />
-//   </div>,
-// ];
-
-// const App = () => {
-//   return (
-//     <div className="App">
-//       <Carousel pages={pages} />
-//       <div className="flex justify-center mt-4">
-//         <button onClick={downloadAllPagesAsPDF} className="bg-blue-500 text-white py-2 px-4 rounded m-2">
-//           Download as PDF
-//         </button>
-//         <button onClick={downloadAllPagesAsZIP} className="bg-green-500 text-white py-2 px-4 rounded m-2">
-//           Download as ZIP
-//         </button>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default App;
-
-
-import React from 'react';
-import Carousel from './Carousel';
-import { downloadAllPagesAsPDF, downloadAllPagesAsZIP } from './Download';
-import './index.css'; // Ensure Tailwind CSS is included
-
-const pages = [
-  <div className="bg-gray-200 p-5 flex justify-center items-center">
-    <img src={`${process.env.PUBLIC_URL}/images/image1.jpg`} alt="Page 1" className="max-w-full h-auto" />
-  </div>,
-  <div className="bg-gray-200 p-5 flex justify-center items-center">
-    <img src={`${process.env.PUBLIC_URL}/images/image2.jpg`} alt="Page 2" className="max-w-full h-auto" />
-  </div>,
-  <div className="bg-gray-200 p-5 flex justify-center items-center">
-    <img src={`${process.env.PUBLIC_URL}/images/image3.jpg`} alt="Page 3" className="max-w-full h-auto" />
-  </div>,
-];
-
-const App = () => {
-  return (
-    <div className="App">
-      <Carousel pages={pages} />
-      <div className="flex justify-center mt-4">
-        <button onClick={downloadAllPagesAsPDF} className="bg-blue-500 text-white py-2 px-4 rounded m-2">
-          Download as PDF
-        </button>
-        <button onClick={downloadAllPagesAsZIP} className="bg-green-500 text-white py-2 px-4 rounded m-2">
-          Download as ZIP
-        </button>
-      </div>
-    </div>
-  );
+  doc.save('carousel_pages.pdf');
 };
 
-export default App;
+// Function to download all pages as ZIP
+export const downloadAllPagesAsZIP = async (pages) => {
+  const zip = new JSZip();
+  
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    await html2canvas(page, { scale: 2 }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const byteString = atob(imgData.split(',')[1]);
+      const mimeString = imgData.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let j = 0; j < byteString.length; j++) {
+        ia[j] = byteString.charCodeAt(j);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      zip.file(`page_${i + 1}.png`, blob);
+    });
+  }
 
-
+  zip.generateAsync({ type: 'blob' }).then((content) => {
+    saveAs(content, 'carousel_pages.zip');
+  });
+};
