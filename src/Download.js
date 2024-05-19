@@ -1,41 +1,48 @@
-import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
-const downloadAllPagesAsPDF = async () => {
-  const pages = document.querySelectorAll('.carousel-page');
-  const pdf = new jsPDF();
-  let firstPage = true;
-
-  for (let page of pages) {
-    const canvas = await html2canvas(page);
-    const imgData = canvas.toDataURL('image/png');
-    if (!firstPage) pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, 0);
-    firstPage = false;
+// Function to download all pages as PDF
+export const downloadAllPagesAsPDF = async (pages) => {
+  const doc = new jsPDF();
+  
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    await html2canvas(page, { scale: 2 }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      if (i > 0) doc.addPage();
+      doc.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
+    });
   }
 
-  pdf.save('carousel_pages.pdf');
+  doc.save('carousel_pages.pdf');
 };
 
-const downloadAllPagesAsZIP = async () => {
-  const pages = document.querySelectorAll('.carousel-page');
+// Function to download all pages as ZIP
+export const downloadAllPagesAsZIP = async (pages) => {
   const zip = new JSZip();
-  let count = 0;
-
-  for (let page of pages) {
-    const canvas = await html2canvas(page);
-    const imgData = canvas.toDataURL('image/png');
-    const imgBlob = await fetch(imgData).then(res => res.blob());
-    zip.file(`page-${count}.png`, imgBlob);
-    count++;
+  
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    await html2canvas(page, { scale: 2 }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const byteString = atob(imgData.split(',')[1]);
+      const mimeString = imgData.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let j = 0; j < byteString.length; j++) {
+        ia[j] = byteString.charCodeAt(j);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      zip.file(`page_${i + 1}.png`, blob);
+    });
   }
 
-  const content = await zip.generateAsync({ type: 'blob' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(content);
-  link.download = 'carousel_pages.zip';
-  link.click();
+  zip.generateAsync({ type: 'blob' }).then((content) => {
+    saveAs(content, 'carousel_pages.zip');
+  });
 };
-
-export { downloadAllPagesAsPDF, downloadAllPagesAsZIP };
