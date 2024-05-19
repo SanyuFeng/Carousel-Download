@@ -1,48 +1,44 @@
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import React, { useRef } from 'react';
+import Carousel from './Carousel';
+import { downloadAllPagesAsPDF, downloadAllPagesAsZIP } from './Download';
+import './index.css'; // Ensure Tailwind CSS is included
 
-// Function to download all pages as PDF
-export const downloadAllPagesAsPDF = async (pages) => {
-  const doc = new jsPDF();
-  
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i];
-    await html2canvas(page, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      if (i > 0) doc.addPage();
-      doc.addImage(imgData, 'PNG', 0, 0, imgWidth, pageHeight);
-    });
-  }
+const pagesData = [
+  { id: 1, src: `${process.env.PUBLIC_URL}/images/image1.jpg`, alt: "Page 1" },
+  { id: 2, src: `${process.env.PUBLIC_URL}/images/image2.jpg`, alt: "Page 2" },
+  { id: 3, src: `${process.env.PUBLIC_URL}/images/image3.jpg`, alt: "Page 3" },
+];
 
-  doc.save('carousel_pages.pdf');
+const App = () => {
+  const pageRefs = useRef([]);
+
+  return (
+    <div className="App">
+      <Carousel pages={pagesData.map((page, index) => (
+        <div
+          key={page.id}
+          ref={(el) => (pageRefs.current[index] = el)}
+          className="bg-gray-200 p-5 flex justify-center items-center"
+        >
+          <img src={page.src} alt={page.alt} className="max-w-full h-auto" />
+        </div>
+      ))} />
+      <div className="flex justify-center mt-4">
+        <button
+          onClick={() => downloadAllPagesAsPDF(pageRefs.current)}
+          className="bg-blue-500 text-white py-2 px-4 rounded m-2"
+        >
+          Download as PDF
+        </button>
+        <button
+          onClick={() => downloadAllPagesAsZIP(pageRefs.current)}
+          className="bg-green-500 text-white py-2 px-4 rounded m-2"
+        >
+          Download as ZIP
+        </button>
+      </div>
+    </div>
+  );
 };
 
-// Function to download all pages as ZIP
-export const downloadAllPagesAsZIP = async (pages) => {
-  const zip = new JSZip();
-  
-  for (let i = 0; i < pages.length; i++) {
-    const page = pages[i];
-    await html2canvas(page, { scale: 2 }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const byteString = atob(imgData.split(',')[1]);
-      const mimeString = imgData.split(',')[0].split(':')[1].split(';')[0];
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-      for (let j = 0; j < byteString.length; j++) {
-        ia[j] = byteString.charCodeAt(j);
-      }
-      const blob = new Blob([ab], { type: mimeString });
-      zip.file(`page_${i + 1}.png`, blob);
-    });
-  }
-
-  zip.generateAsync({ type: 'blob' }).then((content) => {
-    saveAs(content, 'carousel_pages.zip');
-  });
-};
+export default App;
